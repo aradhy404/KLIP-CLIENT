@@ -101,3 +101,7 @@ export const listEntries = (token, onSlow) =>
 
 export const createEntry = (token, entry) =>
   request(PATHS.entries, { method: "POST", token, body: entry });
+
+// action is "confirm", "dispute" or "settle".
+export const transitionEntry = (token, id, action) =>
+  request(`${PATHS.entries}/${encodeURIComponent(id)}/${action}`, { method: "POST", token });

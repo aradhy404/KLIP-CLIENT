@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listEntries } from "./api.js";
+import { listEntries, transitionEntry } from "./api.js";
 import { formatMoney, formatToday, plural, summarize } from "./format.js";
 import Composer from "./Composer.jsx";
 import EntryRow from "./EntryRow.jsx";
@@ -59,6 +59,30 @@ export default function Ledger({ session, onSignOut }) {
     setFilter("all");
     load();
   };
+
+  // Confirm, dispute or settle. Throws a readable message for the row to show.
+  const handleAction = useCallback(
+    async (id, action) => {
+      try {
+        await transitionEntry(token, id, action);
+      } catch (err) {
+        if (err.status === 401) return endSession();
+        if (err.status === 409) {
+          load();
+          throw new Error(
+            "This entry changed since you last loaded it. The list is refreshed, so check it and try again."
+          );
+        }
+        if (err.status === 403 || err.status === 404) {
+          throw new Error("You can't do that on this entry.");
+        }
+        throw err;
+      }
+      setFreshId(id);
+      await load();
+    },
+    [token, load, endSession]
+  );
 
   const facts = stats
     ? [
@@ -157,7 +181,12 @@ export default function Ledger({ session, onSignOut }) {
           ) : (
             <ol className="rows">
               {visible.map((entry) => (
-                <EntryRow key={entry.id} entry={entry} fresh={entry.id === freshId} />
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  fresh={entry.id === freshId}
+                  onAction={handleAction}
+                />
               ))}
             </ol>
           )}

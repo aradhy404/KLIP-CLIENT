@@ -805,3 +805,51 @@ h2 {
     transition: none !important;
   }
 }
+
+/* Actions on an entry ------------------------------------------------- */
+
+.note {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 12px;
+}
+
+.ask {
+  flex-basis: 100%;
+  margin: 0 0 2px;
+  font-size: 0.95rem;
+}
+
+.btn.small {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+}
+
+.btn.primary.small {
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.btn.primary.small:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+.link-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.row .msg.err {
+  min-height: 0;
+  margin: 8px 0 0;
+}

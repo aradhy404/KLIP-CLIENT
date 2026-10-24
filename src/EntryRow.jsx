@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatEntryDate, formatMoney } from "./format.js";
 
 const STATUS = {
@@ -5,6 +6,18 @@ const STATUS = {
   confirmed: "Confirmed",
   dispute: "Disputed",
   settled: "Settled",
+};
+
+// Actions that can't be taken back ask once before they run.
+const ASK = {
+  dispute: {
+    question: "Dispute this entry? The person who recorded it will see it as disputed.",
+    yes: "Yes, dispute",
+  },
+  settle: {
+    question: "Mark this as settled? It stays in your history.",
+    yes: "Yes, mark settled",
+  },
 };
 
 function StatusIcon({ status }) {
@@ -40,12 +53,20 @@ function StatusIcon({ status }) {
   );
 }
 
-export default function EntryRow({ entry, fresh }) {
+export default function EntryRow({ entry, fresh, onAction }) {
+  const [asking, setAsking] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
   const lender = entry.role === "lender";
   const money = entry.type === "money";
   const settled = entry.status === "settled";
   // The server falls back to the phone number when you haven't named someone.
   const unnamed = lender && entry.other_party === entry.counterparty_phone;
+
+  // Only the other person can confirm or dispute. Only the lender can settle.
+  const canReply = !lender && entry.status === "pending";
+  const canSettle = lender && ["pending", "confirmed", "dispute"].includes(entry.status);
 
   const direction = money
     ? lender
@@ -54,6 +75,19 @@ export default function EntryRow({ entry, fresh }) {
     : lender
       ? "owed to you"
       : "owed by you";
+
+  async function run(action) {
+    setBusy(true);
+    setError("");
+    try {
+      await onAction(entry.id, action);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAsking(null);
+      setBusy(false);
+    }
+  }
 
   const classes = ["row", fresh && "fresh", settled && "is-settled"].filter(Boolean).join(" ");
 
@@ -70,6 +104,76 @@ export default function EntryRow({ entry, fresh }) {
           <span>{formatEntryDate(entry.created_at)}</span>
           {!lender && <span>Asked of you</span>}
         </p>
+
+        {canReply && !asking && (
+          <p className="note">
+            {money ? "Is this right? Confirming adds it to what you owe." : "Is this right?"}
+          </p>
+        )}
+        {lender && entry.status === "dispute" && (
+          <p className="note">
+            They disagree with this entry. Mark it settled once you've sorted it out.
+          </p>
+        )}
+
+        {(canReply || canSettle) && (
+          <div className="actions">
+            {asking ? (
+              <>
+                <p className="ask">{ASK[asking].question}</p>
+                <button
+                  className="btn primary small"
+                  disabled={busy}
+                  onClick={() => run(asking)}
+                >
+                  {busy ? "Saving…" : ASK[asking].yes}
+                </button>
+                <button className="link-btn" disabled={busy} onClick={() => setAsking(null)}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                {canReply && (
+                  <>
+                    <button
+                      className="btn primary small"
+                      disabled={busy}
+                      onClick={() => run("confirm")}
+                      aria-label={`Confirm entry from ${entry.other_party}`}
+                    >
+                      {busy ? "Saving…" : "Confirm"}
+                    </button>
+                    <button
+                      className="btn small"
+                      disabled={busy}
+                      onClick={() => setAsking("dispute")}
+                      aria-label={`Dispute entry from ${entry.other_party}`}
+                    >
+                      Dispute
+                    </button>
+                  </>
+                )}
+                {canSettle && (
+                  <button
+                    className="btn small"
+                    disabled={busy}
+                    onClick={() => setAsking("settle")}
+                    aria-label={`Mark entry for ${entry.other_party} as settled`}
+                  >
+                    Mark settled
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <p className="msg err" role="alert">
+            {error}
+          </p>
+        )}
       </div>
 
       <div className="row-amount">
